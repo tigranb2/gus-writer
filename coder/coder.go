@@ -1,12 +1,14 @@
 package coder
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/klauspost/reedsolomon"
+	"os"
 )
 
-func encode(data []byte) (splits [][][]byte) {
-	enc, _ := reedsolomon.New(5, 3) //change dataShards, parityShards values !
+func Encode(data []byte) [][]byte {
+	enc, _ := reedsolomon.New(2, 1)
 	shards, _ := enc.Split(data)
 	err := enc.Encode(shards)
 	if err != nil {
@@ -19,22 +21,41 @@ func encode(data []byte) (splits [][][]byte) {
 		fmt.Println("encode ok")
 	}
 
-	split1 := make([][]byte, 8)
-	split2 := make([][]byte, 8)
-	split3 := make([][]byte, 8)
-
-	// Split the shards
-	// find  x!
-	/*
-	for i := range shards {
-		split1[i] = shards[i][:x]
-		split2[i] = shards[i][:x:]
-		split3[i] = shards[i][:total-x]
-	}
-
-	 */
-	splits = append(splits, split1, split2, split3)
-	return splits
+	return shards
 }
 
+func Decode(shards [][]byte) (data []byte) {
+	enc, _ := reedsolomon.New(2, 1)
 
+	// Verify the shards
+	ok, err := enc.Verify(shards)
+	if ok {
+		fmt.Println("No reconstruction needed")
+	} else {
+		fmt.Println("Verification failed. Reconstructing data")
+		err = enc.Reconstruct(shards)
+		if err != nil {
+			fmt.Println("Reconstruct failed -", err)
+			os.Exit(1)
+		}
+		ok, err = enc.Verify(shards)
+		if !ok {
+			fmt.Println("Verification failed after reconstruction, data likely corrupted.")
+			os.Exit(1)
+		}
+		if err != nil {
+			fmt.Println("Verification failed, reconstruction failed -", err)
+			os.Exit(1)
+		}
+
+	}
+
+	buf := new(bytes.Buffer)
+	err = enc.Join(buf, shards, 2)
+	if err != nil {
+		fmt.Println("Join failed -", err)
+		os.Exit(1)
+	}
+
+	return buf.Bytes()
+}

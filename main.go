@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"gus-writer/coder"
 	"gus-writer/db"
 	"log"
 	"os"
@@ -21,7 +22,7 @@ func main() {
 		return
 	}
 	redisAddr := arguments[1] //"localhost:6379"
-	ackNeeded, err := strconv.Atoi(arguments[2])
+	//ackNeeded, err := strconv.Atoi(arguments[2])
 	totalWrites, err := strconv.Atoi(arguments[3])
 	if err != nil {
 		log.Fatalf("input formatted incorrectly: %v", err)
@@ -34,13 +35,14 @@ func main() {
 
 	for i := 0; i < totalWrites; i++ {
 		name := randstring.FixedLengthString(10) //randomly generate value to write, length of 10.
-		d.Client.Set(context.TODO(), "name", data{name: name}, 0)
-		d.Client.Wait(context.TODO(), ackNeeded, 0) //timeout = 0
+		val := coder.Encode([]byte(name))
+		d.Client.Set(context.TODO(), "name", val, 0)
+		//d.Client.Wait(context.TODO(), ackNeeded, 0) //timeout = 0
 
-		val, err := d.Client.Get(context.TODO(), "name").Result()
+		read, err := d.Client.Get(context.TODO(), "name").Result()
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(val)
+		fmt.Println(read)
 	}
 }
